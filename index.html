@@ -4,1223 +4,429 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lifestyle & Health Research Survey - MTurk</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Additional mobile optimizations */
-        @media (max-width: 640px) {
-            .scale-rating {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .scale-options {
-                justify-content: space-between;
-                margin: 8px 0;
-            }
-        }
+        .hidden { display: none !important; }
+        .scale-rating { transition: all 0.3s ease; }
+        .scale-option:hover { transform: scale(1.05); }
+        .continue-btn:hover { transform: translateY(-1px); }
     </style>
 </head>
-<body class="bg-gray-50">
-    <div id="root"></div>
+<body class="bg-gray-50 min-h-screen">
+    <div id="app" class="py-6 px-4">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header -->
+            <div class="bg-white p-6 rounded-lg shadow-sm mb-6">
+                <h1 class="text-3xl font-bold mb-2">Lifestyle & Health Research Survey - MTurk</h1>
+                <p class="text-gray-600">A research survey about lifestyle habits and health-related topics. Takes approximately 3-5 minutes to complete. Payment varies based on sections you qualify for.</p>
+            </div>
 
-    <script type="text/babel">
-        const { useState } = React;
+            <!-- Progress Bar -->
+            <div id="progress-container" class="bg-white p-4 rounded-lg shadow-sm mb-6">
+                <div class="text-sm text-gray-500 mb-2">Section <span id="current-section">1</span> of 11</div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div id="progress-bar" class="bg-blue-600 h-3 rounded-full transition-all duration-500" style="width: 9%"></div>
+                </div>
+            </div>
 
-        const MTurkSurvey = () => {
-          const [currentSection, setCurrentSection] = useState(1);
-          const [responses, setResponses] = useState({});
-          const [qualifications, setQualifications] = useState({
+            <!-- Survey Sections -->
+            <div id="survey-content" class="bg-white p-6 rounded-lg shadow-sm">
+                <!-- Content will be dynamically inserted here -->
+            </div>
+
+            <!-- Continue Button -->
+            <div id="continue-container" class="mt-8 text-center">
+                <button id="continue-btn" class="continue-btn bg-blue-600 text-white px-8 py-3 text-lg rounded-lg hover:bg-blue-700 transition-all shadow-lg font-medium">
+                    Continue
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Survey state
+        let currentSection = 1;
+        let responses = {};
+        let qualifications = {
             cannabis: false,
             ketamine: false,
             medSpa: false
-          });
-          const [completionCode, setCompletionCode] = useState('');
-          const [isComplete, setIsComplete] = useState(false);
+        };
+        let isComplete = false;
 
-          // Update response and handle section navigation
-          const updateResponse = (questionId, value) => {
-            const newResponses = { ...responses, [questionId]: value };
-            setResponses(newResponses);
+        // DOM elements
+        const surveyContent = document.getElementById('survey-content');
+        const continueBtn = document.getElementById('continue-btn');
+        const progressContainer = document.getElementById('progress-container');
+        const continueContainer = document.getElementById('continue-container');
+        const currentSectionSpan = document.getElementById('current-section');
+        const progressBar = document.getElementById('progress-bar');
 
-            // Handle section 1 completion logic
-            if (currentSection === 1) {
-              checkQualifications(newResponses);
-            }
-          };
+        // Update progress bar
+        function updateProgress() {
+            currentSectionSpan.textContent = currentSection;
+            progressBar.style.width = `${(currentSection / 11) * 100}%`;
+        }
 
-          // Check qualifications based on section 1 responses
-          const checkQualifications = (responses) => {
-            const cannabis = ['monthly', 'weekly', 'daily'].includes(responses.cannabis_usage);
-            const ketamine = responses.ketamine_usage === 'yes';
-            const medSpa = responses.med_spa_usage === 'yes';
+        // Update response
+        function updateResponse(questionId, value) {
+            responses[questionId] = value;
             
-            setQualifications({ cannabis, ketamine, medSpa });
-          };
-
-          // Navigate to next section based on current section and qualifications
-          const nextSection = () => {
             if (currentSection === 1) {
-              // After lifestyle questions, route based on qualifications
-              if (!qualifications.cannabis && !qualifications.ketamine && !qualifications.medSpa) {
-                // No qualifications - show Code B and end
-                setCompletionCode('MTK-BASIC-2024');
-                setIsComplete(true);
-                return;
-              }
-              
-              // Has qualifications - go to first qualified section
-              if (qualifications.cannabis) {
-                setCurrentSection(2);
-              } else if (qualifications.ketamine) {
-                setCurrentSection(5);
-              } else if (qualifications.medSpa) {
-                setCurrentSection(9);
-              }
-            } else if (currentSection === 2) {
-              // Cannabis method selection
-              if (responses.cannabis_method === 'dispensary') {
-                setCurrentSection(3);
-              } else {
-                setCurrentSection(4);
-              }
-            } else if (currentSection === 3 || currentSection === 4) {
-              // After cannabis sections
-              if (qualifications.ketamine) {
-                setCurrentSection(5);
-              } else if (qualifications.medSpa) {
-                setCurrentSection(9);
-              } else {
-                // Only had cannabis - show Code A and end
-                setCompletionCode('MTK-QUALIFIED-2024');
-                setIsComplete(true);
-              }
-            } else if (currentSection === 5) {
-              // Ketamine method selection
-              if (responses.ketamine_setting === 'clinical') {
-                setCurrentSection(6);
-              } else {
-                setCurrentSection(7);
-              }
-            } else if (currentSection === 6 || currentSection === 7) {
-              // After ketamine sections
-              if (qualifications.medSpa) {
-                setCurrentSection(9);
-              } else {
-                // Finished all qualified sections - show Code A
-                setCompletionCode('MTK-QUALIFIED-2024');
-                setIsComplete(true);
-              }
-            } else if (currentSection === 9) {
-              // After med spa section - show Code A
-              setCompletionCode('MTK-QUALIFIED-2024');
-              setIsComplete(true);
+                checkQualifications();
             }
-          };
+        }
 
-          // Render scale rating component
-          const ScaleRating = ({ questionId, label }) => (
-            <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border">
-              <label className="block text-sm font-medium mb-3 text-gray-800">{label}</label>
-              <div className="scale-rating flex items-center justify-between">
-                <span className="text-xs text-gray-500 hidden sm:block">Very Dissatisfied</span>
-                <div className="scale-options flex space-x-3 sm:space-x-4">
-                  {[1, 2, 3, 4, 5].map(value => (
-                    <label key={value} className="flex flex-col items-center cursor-pointer">
-                      <input
-                        type="radio"
-                        name={questionId}
-                        value={value}
-                        onChange={(e) => updateResponse(questionId, e.target.value)}
-                        className="mb-1 w-4 h-4"
-                        required
-                      />
-                      <span className="text-xs font-medium">{value}</span>
+        // Check qualifications based on section 1 responses
+        function checkQualifications() {
+            qualifications.cannabis = ['monthly', 'weekly', 'daily'].includes(responses.cannabis_usage);
+            qualifications.ketamine = responses.ketamine_usage === 'yes';
+            qualifications.medSpa = responses.med_spa_usage === 'yes';
+        }
+
+        // Create radio group
+        function createRadioGroup(name, options, required = true) {
+            return options.map(option => {
+                const value = typeof option === 'string' ? option : option.value;
+                const label = typeof option === 'string' ? option.charAt(0).toUpperCase() + option.slice(1) : option.label;
+                
+                return `
+                    <label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+                        <input type="radio" name="${name}" value="${value}" ${required ? 'required' : ''} 
+                               class="mr-3 w-4 h-4" onchange="updateResponse('${name}', this.value)">
+                        <span>${label}</span>
                     </label>
-                  ))}
-                </div>
-                <span className="text-xs text-gray-500 hidden sm:block">Very Satisfied</span>
-              </div>
-              <div className="flex justify-between mt-2 sm:hidden">
-                <span className="text-xs text-gray-500">Very Dissatisfied</span>
-                <span className="text-xs text-gray-500">Very Satisfied</span>
-              </div>
-            </div>
-          );
+                `;
+            }).join('');
+        }
 
-          // Section 1: Lifestyle Questions
-          const Section1 = () => (
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h2 className="text-2xl font-bold mb-4">Lifestyle Questions</h2>
-              <p className="mb-6 text-gray-600">Please answer the following questions about your lifestyle and habits.</p>
-              
-              <div className="space-y-6">
+        // Create scale rating
+        function createScaleRating(questionId, label) {
+            return `
+                <div class="mb-6 p-4 bg-white rounded-lg shadow-sm border">
+                    <label class="block text-sm font-medium mb-3 text-gray-800">${label}</label>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-500 hidden sm:block">Very Dissatisfied</span>
+                        <div class="flex space-x-3 sm:space-x-4">
+                            ${[1,2,3,4,5].map(value => `
+                                <label class="scale-option flex flex-col items-center cursor-pointer">
+                                    <input type="radio" name="${questionId}" value="${value}" required 
+                                           class="mb-1 w-4 h-4" onchange="updateResponse('${questionId}', this.value)">
+                                    <span class="text-xs font-medium">${value}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                        <span class="text-xs text-gray-500 hidden sm:block">Very Satisfied</span>
+                    </div>
+                    <div class="flex justify-between mt-2 sm:hidden">
+                        <span class="text-xs text-gray-500">Very Dissatisfied</span>
+                        <span class="text-xs text-gray-500">Very Satisfied</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Section 1: Lifestyle Questions
+        function renderSection1() {
+            return `
+                <h2 class="text-2xl font-bold mb-4">Lifestyle Questions</h2>
+                <p class="mb-6 text-gray-600">Please answer the following questions about your lifestyle and habits.</p>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium mb-3">In the past 12 months, how often have you used cannabis? *</label>
+                        <div class="space-y-2">
+                            ${createRadioGroup('cannabis_usage', ['never', 'rarely', 'monthly', 'weekly', 'daily'])}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-3">Have you used ketamine in the past 12 months? *</label>
+                        <div class="space-y-2">
+                            ${createRadioGroup('ketamine_usage', ['yes', 'no'])}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-3">In the past month, have you received procedures like Botox, laser hair removal, CoolSculpting, dermal fillers, or similar treatments at a med spa? *</label>
+                        <div class="space-y-2">
+                            ${createRadioGroup('med_spa_usage', ['yes', 'no'])}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-3">How often do you drink alcohol? *</label>
+                        <div class="space-y-2">
+                            ${createRadioGroup('alcohol_usage', ['never', 'rarely', 'monthly', 'weekly', 'daily'])}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-3">How often do you use nicotine/vaping products? *</label>
+                        <div class="space-y-2">
+                            ${createRadioGroup('nicotine_usage', ['never', 'rarely', 'monthly', 'weekly', 'daily'])}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-3">How many hours of sleep do you typically get per night? *</label>
+                        <div class="space-y-2">
+                            ${createRadioGroup('sleep_hours', [
+                                { value: 'less_than_5', label: 'Less than 5 hours' },
+                                { value: '5_6', label: '5-6 hours' },
+                                { value: '7_8', label: '7-8 hours' },
+                                { value: 'more_than_8', label: 'More than 8 hours' }
+                            ])}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-3">How often do you exercise per week? *</label>
+                        <div class="space-y-2">
+                            ${createRadioGroup('exercise_frequency', [
+                                { value: 'never', label: 'Never' },
+                                { value: '1_2', label: '1-2 times' },
+                                { value: '3_4', label: '3-4 times' },
+                                { value: '5_plus', label: '5+ times' }
+                            ])}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-3">Please select "Weekly" for this question to show you are paying attention. *</label>
+                        <div class="space-y-2">
+                            ${createRadioGroup('attention_check', ['never', 'rarely', 'monthly', 'weekly', 'daily'])}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-3">How often do you drink coffee? *</label>
+                        <div class="space-y-2">
+                            ${createRadioGroup('coffee_usage', ['never', 'rarely', 'monthly', 'weekly', 'daily'])}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-3">How many hours per day do you spend on social media? *</label>
+                        <div class="space-y-2">
+                            ${createRadioGroup('social_media_hours', [
+                                { value: 'less_than_1', label: 'Less than 1 hour' },
+                                { value: '1_2', label: '1-2 hours' },
+                                { value: '3_4', label: '3-4 hours' },
+                                { value: '5_plus', label: '5+ hours' }
+                            ])}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Section 2: Cannabis Method Selection
+        function renderSection2() {
+            return `
+                <h2 class="text-2xl font-bold mb-4">Cannabis Research Section</h2>
+                <p class="mb-6 text-gray-600">Based on your previous answers, you qualify for this research section. Please answer the following questions about cannabis use.</p>
+                
                 <div>
-                  <label className="block text-sm font-medium mb-3">In the past 12 months, how often have you used cannabis? *</label>
-                  <div className="space-y-2">
-                    {['never', 'rarely', 'monthly', 'weekly', 'daily'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="cannabis_usage"
-                          value={option}
-                          onChange={(e) => updateResponse('cannabis_usage', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        <span className="capitalize">{option}</span>
-                      </label>
-                    ))}
-                  </div>
+                    <label class="block text-sm font-medium mb-3">Which method do you use MOST OFTEN to purchase cannabis? *</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+                            <input type="radio" name="cannabis_method" value="dispensary" required 
+                                   class="mr-3 w-4 h-4" onchange="updateResponse('cannabis_method', this.value)">
+                            Dispensary (physical store)
+                        </label>
+                        <label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+                            <input type="radio" name="cannabis_method" value="delivery" required 
+                                   class="mr-3 w-4 h-4" onchange="updateResponse('cannabis_method', this.value)">
+                            Delivery service
+                        </label>
+                    </div>
                 </div>
+            `;
+        }
 
+        // Section 5: Ketamine Setting Selection
+        function renderSection5() {
+            return `
+                <h2 class="text-2xl font-bold mb-4">Ketamine Research Section</h2>
+                <p class="mb-6 text-gray-600">Based on your previous answers, you qualify for this research section. Please answer the following questions about ketamine use.</p>
+                
                 <div>
-                  <label className="block text-sm font-medium mb-3">Have you used ketamine in the past 12 months? *</label>
-                  <div className="space-y-2">
-                    {['yes', 'no'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="ketamine_usage"
-                          value={option}
-                          onChange={(e) => updateResponse('ketamine_usage', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        <span className="capitalize">{option}</span>
-                      </label>
-                    ))}
-                  </div>
+                    <label class="block text-sm font-medium mb-3">In what setting did you MOST RECENTLY use ketamine? *</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+                            <input type="radio" name="ketamine_setting" value="clinical" required 
+                                   class="mr-3 w-4 h-4" onchange="updateResponse('ketamine_setting', this.value)">
+                            Clinical/medical setting (doctor's office, clinic)
+                        </label>
+                        <label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+                            <input type="radio" name="ketamine_setting" value="other" required 
+                                   class="mr-3 w-4 h-4" onchange="updateResponse('ketamine_setting', this.value)">
+                            Other setting
+                        </label>
+                    </div>
                 </div>
+            `;
+        }
 
-                <div>
-                  <label className="block text-sm font-medium mb-3">In the past month, have you received procedures like Botox, laser hair removal, CoolSculpting, dermal fillers, or similar treatments at a med spa? *</label>
-                  <div className="space-y-2">
-                    {['yes', 'no'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="med_spa_usage"
-                          value={option}
-                          onChange={(e) => updateResponse('med_spa_usage', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        <span className="capitalize">{option}</span>
-                      </label>
-                    ))}
-                  </div>
+        // Section 9: Med Spa Research Section
+        function renderSection9() {
+            return `
+                <h2 class="text-2xl font-bold mb-4">Med Spa Research Section</h2>
+                <p class="mb-6 text-gray-600">Based on your previous answers, you qualify for this research section. Please answer the following questions about med spa treatments.</p>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium mb-3">Which treatments did you receive in the past month? (Select all that apply) *</label>
+                        <div class="space-y-2">
+                            ${['Botox', 'Dermal fillers', 'Laser hair removal', 'CoolSculpting', 'Chemical peels', 'Microneedling', 'Other'].map(option => `
+                                <label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+                                    <input type="checkbox" name="med_spa_treatments" value="${option}" 
+                                           class="mr-3 w-4 h-4" onchange="handleCheckboxChange('med_spa_treatments', this)">
+                                    ${option}
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2">What is the name of the med spa you visited most recently? *</label>
+                        <input type="text" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               onchange="updateResponse('med_spa_name', this.value)">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Please input the city and state for the med spa you visited most recently. (example - Denver, CO) *</label>
+                        <input type="text" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               onchange="updateResponse('med_spa_location', this.value)">
+                    </div>
                 </div>
+            `;
+        }
 
-                <div>
-                  <label className="block text-sm font-medium mb-3">How often do you drink alcohol? *</label>
-                  <div className="space-y-2">
-                    {['never', 'rarely', 'monthly', 'weekly', 'daily'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="alcohol_usage"
-                          value={option}
-                          onChange={(e) => updateResponse('alcohol_usage', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        <span className="capitalize">{option}</span>
-                      </label>
-                    ))}
-                  </div>
+        // Completion screen
+        function renderCompletion(code) {
+            return `
+                <div class="text-center">
+                    <h2 class="text-3xl font-bold mb-4 text-green-600">Thank You!</h2>
+                    <p class="mb-6 text-lg">Your response has been recorded.</p>
+                    <div class="bg-blue-50 border-2 border-blue-200 text-blue-800 px-6 py-4 rounded-lg mb-6">
+                        <p class="font-bold text-lg mb-2">Your completion code is:</p>
+                        <p class="text-2xl font-mono font-bold">${code}</p>
+                    </div>
+                    <p class="text-gray-600">Please enter this code in MTurk to receive payment.</p>
                 </div>
+            `;
+        }
 
-                <div>
-                  <label className="block text-sm font-medium mb-3">How often do you use nicotine/vaping products? *</label>
-                  <div className="space-y-2">
-                    {['never', 'rarely', 'monthly', 'weekly', 'daily'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="nicotine_usage"
-                          value={option}
-                          onChange={(e) => updateResponse('nicotine_usage', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        <span className="capitalize">{option}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
+        // Handle checkbox change
+        function handleCheckboxChange(name, checkbox) {
+            if (!responses[name]) responses[name] = [];
+            
+            if (checkbox.checked) {
+                responses[name].push(checkbox.value);
+            } else {
+                responses[name] = responses[name].filter(item => item !== checkbox.value);
+            }
+        }
 
-                <div>
-                  <label className="block text-sm font-medium mb-3">How many hours of sleep do you typically get per night? *</label>
-                  <div className="space-y-2">
-                    {[
-                      { value: 'less_than_5', label: 'Less than 5 hours' },
-                      { value: '5_6', label: '5-6 hours' },
-                      { value: '7_8', label: '7-8 hours' },
-                      { value: 'more_than_8', label: 'More than 8 hours' }
-                    ].map(option => (
-                      <label key={option.value} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="sleep_hours"
-                          value={option.value}
-                          onChange={(e) => updateResponse('sleep_hours', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
+        // Navigate to next section
+        function nextSection() {
+            if (currentSection === 1) {
+                if (!qualifications.cannabis && !qualifications.ketamine && !qualifications.medSpa) {
+                    showCompletion('MTK-BASIC-2024');
+                    return;
+                }
+                
+                if (qualifications.cannabis) {
+                    currentSection = 2;
+                } else if (qualifications.ketamine) {
+                    currentSection = 5;
+                } else if (qualifications.medSpa) {
+                    currentSection = 9;
+                }
+            } else if (currentSection === 2) {
+                if (responses.cannabis_method === 'dispensary') {
+                    currentSection = 3;
+                } else {
+                    currentSection = 4;
+                }
+            } else if (currentSection === 3 || currentSection === 4) {
+                if (qualifications.ketamine) {
+                    currentSection = 5;
+                } else if (qualifications.medSpa) {
+                    currentSection = 9;
+                } else {
+                    showCompletion('MTK-QUALIFIED-2024');
+                    return;
+                }
+            } else if (currentSection === 5) {
+                if (responses.ketamine_setting === 'clinical') {
+                    currentSection = 6;
+                } else {
+                    currentSection = 7;
+                }
+            } else if (currentSection === 6 || currentSection === 7) {
+                if (qualifications.medSpa) {
+                    currentSection = 9;
+                } else {
+                    showCompletion('MTK-QUALIFIED-2024');
+                    return;
+                }
+            } else if (currentSection === 9) {
+                showCompletion('MTK-QUALIFIED-2024');
+                return;
+            }
 
-                <div>
-                  <label className="block text-sm font-medium mb-3">How often do you exercise per week? *</label>
-                  <div className="space-y-2">
-                    {[
-                      { value: 'never', label: 'Never' },
-                      { value: '1_2', label: '1-2 times' },
-                      { value: '3_4', label: '3-4 times' },
-                      { value: '5_plus', label: '5+ times' }
-                    ].map(option => (
-                      <label key={option.value} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="exercise_frequency"
-                          value={option.value}
-                          onChange={(e) => updateResponse('exercise_frequency', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
+            renderCurrentSection();
+            updateProgress();
+        }
 
-                <div>
-                  <label className="block text-sm font-medium mb-3">Please select "Weekly" for this question to show you are paying attention. *</label>
-                  <div className="space-y-2">
-                    {['never', 'rarely', 'monthly', 'weekly', 'daily'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="attention_check"
-                          value={option}
-                          onChange={(e) => updateResponse('attention_check', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        <span className="capitalize">{option}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
+        // Show completion screen
+        function showCompletion(code) {
+            isComplete = true;
+            surveyContent.innerHTML = renderCompletion(code);
+            progressContainer.classList.add('hidden');
+            continueContainer.classList.add('hidden');
+        }
 
-                <div>
-                  <label className="block text-sm font-medium mb-3">How often do you drink coffee? *</label>
-                  <div className="space-y-2">
-                    {['never', 'rarely', 'monthly', 'weekly', 'daily'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="coffee_usage"
-                          value={option}
-                          onChange={(e) => updateResponse('coffee_usage', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        <span className="capitalize">{option}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How many hours per day do you spend on social media? *</label>
-                  <div className="space-y-2">
-                    {[
-                      { value: 'less_than_1', label: 'Less than 1 hour' },
-                      { value: '1_2', label: '1-2 hours' },
-                      { value: '3_4', label: '3-4 hours' },
-                      { value: '5_plus', label: '5+ hours' }
-                    ].map(option => (
-                      <label key={option.value} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="social_media_hours"
-                          value={option.value}
-                          onChange={(e) => updateResponse('social_media_hours', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-
-          // Section 2: Cannabis Method Selection
-          const Section2 = () => (
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h2 className="text-2xl font-bold mb-4">Cannabis Research Section</h2>
-              <p className="mb-6 text-gray-600">Based on your previous answers, you qualify for this research section. Please answer the following questions about cannabis use.</p>
-              
-              <div>
-                <label className="block text-sm font-medium mb-3">Which method do you use MOST OFTEN to purchase cannabis? *</label>
-                <div className="space-y-2">
-                  <label className="flex items-center p-2 hover:bg-gray-50 rounded">
-                    <input
-                      type="radio"
-                      name="cannabis_method"
-                      value="dispensary"
-                      onChange={(e) => updateResponse('cannabis_method', e.target.value)}
-                      className="mr-3 w-4 h-4"
-                      required
-                    />
-                    Dispensary (physical store)
-                  </label>
-                  <label className="flex items-center p-2 hover:bg-gray-50 rounded">
-                    <input
-                      type="radio"
-                      name="cannabis_method"
-                      value="delivery"
-                      onChange={(e) => updateResponse('cannabis_method', e.target.value)}
-                      className="mr-3 w-4 h-4"
-                      required
-                    />
-                    Delivery service
-                  </label>
-                </div>
-              </div>
-            </div>
-          );
-
-          // Section 3: Dispensary Section
-          const Section3 = () => (
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h2 className="text-2xl font-bold mb-6">Dispensary Section</h2>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium mb-2">What is the name of the dispensary you most recently made a purchase from? *</label>
-                  <input
-                    type="text"
-                    onChange={(e) => updateResponse('dispensary_name', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Please input the city and state for the dispensary you most recently made a purchase from. (example Denver, CO) *</label>
-                  <input
-                    type="text"
-                    onChange={(e) => updateResponse('dispensary_location', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How do you primarily use cannabis? *</label>
-                  <div className="space-y-2">
-                    {['Medical only', 'Recreational only', 'Both medical and recreational'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="cannabis_use_type"
-                          value={option}
-                          onChange={(e) => updateResponse('cannabis_use_type', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How often do you visit dispensaries? *</label>
-                  <div className="space-y-2">
-                    {['Weekly or more', '2-3 times per month', 'Monthly', 'Every few months', 'Rarely (few times per year)'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="dispensary_frequency"
-                          value={option}
-                          onChange={(e) => updateResponse('dispensary_frequency', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Satisfaction Ratings</h3>
-                  <p className="text-sm text-gray-600 mb-6">Rate your satisfaction with your most recent dispensary experience. Scale: 1 = Very Dissatisfied, 5 = Very Satisfied</p>
-                  
-                  <div className="space-y-2">
-                    {[
-                      'Parking availability and convenience',
-                      'Ease of finding the location',
-                      'Wait time to be served',
-                      'Staff greeting and welcoming attitude',
-                      'Staff friendliness throughout visit',
-                      'Staff knowledge about products',
-                      'Staff ability to answer your questions',
-                      'Staff recommendations quality',
-                      'Product selection and variety',
-                      'Product quality',
-                      'Product availability (items in stock)',
-                      'Pricing clarity and transparency',
-                      'Value for money',
-                      'Checkout process speed',
-                      'Payment options available',
-                      'Store cleanliness',
-                      'Store organization and layout',
-                      'Store atmosphere and comfort',
-                      'Security and safety measures',
-                      'Overall experience'
-                    ].map(item => (
-                      <ScaleRating key={item} questionId={`dispensary_${item.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`} label={item} />
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How likely are you to return to this dispensary? *</label>
-                  <div className="space-y-2">
-                    {['Extremely likely', 'Very likely', 'Somewhat likely', 'Not very likely', 'Not at all likely'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="dispensary_return_likelihood"
-                          value={option}
-                          onChange={(e) => updateResponse('dispensary_return_likelihood', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How likely are you to recommend this dispensary to others? *</label>
-                  <div className="space-y-2">
-                    {['Extremely likely', 'Very likely', 'Somewhat likely', 'Not very likely', 'Not at all likely'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="dispensary_recommend_likelihood"
-                          value={option}
-                          onChange={(e) => updateResponse('dispensary_recommend_likelihood', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-
-          // Section 4: Cannabis Delivery Section
-          const Section4 = () => (
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h2 className="text-2xl font-bold mb-6">Cannabis Delivery Section</h2>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium mb-2">What is the name of the cannabis delivery service you most recently used? *</label>
-                  <input
-                    type="text"
-                    onChange={(e) => updateResponse('delivery_name', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Please input the city and state for the cannabis delivery service you used most recently. (example - Denver, CO) *</label>
-                  <input
-                    type="text"
-                    onChange={(e) => updateResponse('delivery_location', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How do you primarily use cannabis? *</label>
-                  <div className="space-y-2">
-                    {['Medical only', 'Recreational only', 'Both medical and recreational'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="delivery_cannabis_use_type"
-                          value={option}
-                          onChange={(e) => updateResponse('delivery_cannabis_use_type', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How often do you use cannabis delivery services? *</label>
-                  <div className="space-y-2">
-                    {['Weekly or more', '2-3 times per month', 'Monthly', 'Every few months', 'This was my first delivery order'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="delivery_frequency"
-                          value={option}
-                          onChange={(e) => updateResponse('delivery_frequency', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Satisfaction Ratings</h3>
-                  <p className="text-sm text-gray-600 mb-6">Rate your satisfaction with your most recent delivery experience. Scale: 1 = Very Dissatisfied, 5 = Very Satisfied</p>
-                  
-                  <div className="space-y-2">
-                    {[
-                      'Online menu/website ease of use',
-                      'Product selection and variety available',
-                      'Product information and descriptions',
-                      'Pricing transparency and clarity',
-                      'Online ordering process',
-                      'Payment process security and ease',
-                      'Order confirmation and communication',
-                      'Delivery time accuracy (delivered when promised)',
-                      'Delivery scheduling flexibility',
-                      'Driver professionalism and courtesy',
-                      'Driver knowledge about products',
-                      'ID verification process',
-                      'Product packaging and discretion',
-                      'Product quality upon arrival',
-                      'Order accuracy (correct items delivered)',
-                      'Delivery fees and minimum order transparency',
-                      'Customer service responsiveness',
-                      'Text/call updates during delivery',
-                      'Value for money including delivery costs',
-                      'Overall delivery experience'
-                    ].map(item => (
-                      <ScaleRating key={item} questionId={`delivery_${item.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`} label={item} />
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How likely are you to use this delivery service again? *</label>
-                  <div className="space-y-2">
-                    {['Extremely likely', 'Very likely', 'Somewhat likely', 'Not very likely', 'Not at all likely'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="delivery_return_likelihood"
-                          value={option}
-                          onChange={(e) => updateResponse('delivery_return_likelihood', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How likely are you to recommend this delivery service to others? *</label>
-                  <div className="space-y-2">
-                    {['Extremely likely', 'Very likely', 'Somewhat likely', 'Not very likely', 'Not at all likely'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="delivery_recommend_likelihood"
-                          value={option}
-                          onChange={(e) => updateResponse('delivery_recommend_likelihood', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-
-          // Section 5: Ketamine Setting Selection
-          const Section5 = () => (
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h2 className="text-2xl font-bold mb-4">Ketamine Research Section</h2>
-              <p className="mb-6 text-gray-600">Based on your previous answers, you qualify for this research section. Please answer the following questions about ketamine use.</p>
-              
-              <div>
-                <label className="block text-sm font-medium mb-3">In what setting did you MOST RECENTLY use ketamine? *</label>
-                <div className="space-y-2">
-                  <label className="flex items-center p-2 hover:bg-gray-50 rounded">
-                    <input
-                      type="radio"
-                      name="ketamine_setting"
-                      value="clinical"
-                      onChange={(e) => updateResponse('ketamine_setting', e.target.value)}
-                      className="mr-3 w-4 h-4"
-                      required
-                    />
-                    Clinical/medical setting (doctor's office, clinic)
-                  </label>
-                  <label className="flex items-center p-2 hover:bg-gray-50 rounded">
-                    <input
-                      type="radio"
-                      name="ketamine_setting"
-                      value="other"
-                      onChange={(e) => updateResponse('ketamine_setting', e.target.value)}
-                      className="mr-3 w-4 h-4"
-                      required
-                    />
-                    Other setting
-                  </label>
-                </div>
-              </div>
-            </div>
-          );
-
-          // Section 6: Ketamine Clinic Section
-          const Section6 = () => (
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h2 className="text-2xl font-bold mb-6">Ketamine Clinic Section</h2>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium mb-2">What is the name of the ketamine clinic you most recently visited? *</label>
-                  <input
-                    type="text"
-                    onChange={(e) => updateResponse('ketamine_clinic_name', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Please input the city and state for the clinic you most recently visited. (example - Denver, CO) *</label>
-                  <input
-                    type="text"
-                    onChange={(e) => updateResponse('ketamine_clinic_location', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">What type of ketamine treatment do you receive? *</label>
-                  <div className="space-y-2">
-                    {['Medical/therapeutic ketamine (depression, anxiety, PTSD, etc.)', 'Recreational/wellness ketamine', 'Both medical and recreational'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="ketamine_treatment_type"
-                          value={option}
-                          onChange={(e) => updateResponse('ketamine_treatment_type', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How many ketamine sessions have you completed total? *</label>
-                  <div className="space-y-2">
-                    {['1-3 sessions', '4-6 sessions', '7-12 sessions', '13+ sessions'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="ketamine_sessions_total"
-                          value={option}
-                          onChange={(e) => updateResponse('ketamine_sessions_total', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Satisfaction Ratings</h3>
-                  <p className="text-sm text-gray-600 mb-6">Rate your satisfaction with your most recent clinic experience. Scale: 1 = Very Dissatisfied, 5 = Very Satisfied</p>
-                  
-                  <div className="space-y-2">
-                    {[
-                      'Appointment scheduling ease',
-                      'Appointment availability/timing options',
-                      'Check-in process',
-                      'Wait time before treatment',
-                      'Reception staff friendliness',
-                      'Medical staff professionalism',
-                      'Medical staff expertise and knowledge',
-                      'Pre-treatment consultation quality',
-                      'Treatment explanation and preparation',
-                      'Treatment room comfort',
-                      'Treatment room environment/ambiance',
-                      'Privacy and confidentiality',
-                      'Monitoring and safety during treatment',
-                      'Staff availability during treatment',
-                      'Post-treatment care and observation',
-                      'Pricing transparency',
-                      'Value for cost of treatment',
-                      'Facility cleanliness',
-                      'Follow-up communication',
-                      'Overall treatment experience'
-                    ].map(item => (
-                      <ScaleRating key={item} questionId={`ketamine_clinic_${item.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`} label={item} />
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How likely are you to continue treatment at this clinic? *</label>
-                  <div className="space-y-2">
-                    {['Extremely likely', 'Very likely', 'Somewhat likely', 'Not very likely', 'Not at all likely'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="ketamine_clinic_return_likelihood"
-                          value={option}
-                          onChange={(e) => updateResponse('ketamine_clinic_return_likelihood', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How likely are you to recommend this clinic to others? *</label>
-                  <div className="space-y-2">
-                    {['Extremely likely', 'Very likely', 'Somewhat likely', 'Not very likely', 'Not at all likely'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="ketamine_clinic_recommend_likelihood"
-                          value={option}
-                          onChange={(e) => updateResponse('ketamine_clinic_recommend_likelihood', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-
-          // Section 7: Ketamine Online Provider Section
-          const Section7 = () => (
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h2 className="text-2xl font-bold mb-6">Ketamine Online Provider Section</h2>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium mb-2">What is the name of the online ketamine provider you most recently used? *</label>
-                  <input
-                    type="text"
-                    placeholder="Examples: Mindbloom, Nue Life, Wondermed, Better U Care, Joyous, etc."
-                    onChange={(e) => updateResponse('ketamine_online_name', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">What type of ketamine treatment do you receive? *</label>
-                  <div className="space-y-2">
-                    {['Medical/therapeutic ketamine (depression, anxiety, PTSD, etc.)', 'Recreational/wellness ketamine', 'Both medical and recreational'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="ketamine_online_treatment_type"
-                          value={option}
-                          onChange={(e) => updateResponse('ketamine_online_treatment_type', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How many ketamine sessions have you completed with this provider? *</label>
-                  <div className="space-y-2">
-                    {['1-3 sessions', '4-6 sessions', '7-12 sessions', '13+ sessions'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="ketamine_online_sessions"
-                          value={option}
-                          onChange={(e) => updateResponse('ketamine_online_sessions', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Satisfaction Ratings</h3>
-                  <p className="text-sm text-gray-600 mb-6">Rate your satisfaction with your most recent online provider experience. Scale: 1 = Very Dissatisfied, 5 = Very Satisfied</p>
-                  
-                  <div className="space-y-2">
-                    {[
-                      'Initial online assessment/screening process',
-                      'Website ease of use and navigation',
-                      'Provider matching and assignment',
-                      'Initial virtual consultation quality',
-                      'Medical provider expertise and knowledge',
-                      'Treatment plan explanation and customization',
-                      'Medication prescription and dosing guidance',
-                      'Medication delivery/shipping process',
-                      'Treatment instructions and preparation guidance',
-                      'Mobile app or online portal functionality',
-                      'Virtual support during treatment sessions',
-                      'Integration coaching and follow-up',
-                      'Progress tracking and monitoring',
-                      'Communication responsiveness between sessions',
-                      'Scheduling flexibility for appointments',
-                      'Pricing transparency and billing',
-                      'Value for cost of treatment',
-                      'Educational resources and materials',
-                      'Privacy and confidentiality',
-                      'Overall treatment experience'
-                    ].map(item => (
-                      <ScaleRating key={item} questionId={`ketamine_online_${item.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`} label={item} />
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How likely are you to continue treatment with this provider? *</label>
-                  <div className="space-y-2">
-                    {['Extremely likely', 'Very likely', 'Somewhat likely', 'Not very likely', 'Not at all likely'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="ketamine_online_return_likelihood"
-                          value={option}
-                          onChange={(e) => updateResponse('ketamine_online_return_likelihood', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How likely are you to recommend this online provider to others? *</label>
-                  <div className="space-y-2">
-                    {['Extremely likely', 'Very likely', 'Somewhat likely', 'Not very likely', 'Not at all likely'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="ketamine_online_recommend_likelihood"
-                          value={option}
-                          onChange={(e) => updateResponse('ketamine_online_recommend_likelihood', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-
-          // Section 9: Med Spa Research Section
-          const Section9 = () => (
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h2 className="text-2xl font-bold mb-6">Med Spa Research Section</h2>
-              <p className="mb-6 text-gray-600">Based on your previous answers, you qualify for this research section. Please answer the following questions about med spa treatments.</p>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium mb-3">Which treatments did you receive in the past month? (Select all that apply) *</label>
-                  <div className="space-y-2">
-                    {['Botox', 'Dermal fillers', 'Laser hair removal', 'CoolSculpting', 'Chemical peels', 'Microneedling', 'Other'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="checkbox"
-                          name="med_spa_treatments"
-                          value={option}
-                          onChange={(e) => {
-                            const currentTreatments = responses.med_spa_treatments || [];
-                            const newTreatments = e.target.checked 
-                              ? [...currentTreatments, option]
-                              : currentTreatments.filter(t => t !== option);
-                            updateResponse('med_spa_treatments', newTreatments);
-                          }}
-                          className="mr-3 w-4 h-4"
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">What is the name of the med spa you visited most recently? *</label>
-                  <input
-                    type="text"
-                    onChange={(e) => updateResponse('med_spa_name', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Please input the city and state for the med spa you visited most recently. (example - Denver, CO) *</label>
-                  <input
-                    type="text"
-                    onChange={(e) => updateResponse('med_spa_location', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">What services did you receive during your most recent visit? *</label>
-                  <div className="space-y-2">
-                    {[
-                      'Botox/Dysport',
-                      'Dermal fillers', 
-                      'Laser treatments (hair removal, skin resurfacing, etc.)',
-                      'Chemical peels',
-                      'Microneedling',
-                      'CoolSculpting/body contouring',
-                      'Facial treatments',
-                      'IV therapy/wellness injections',
-                      'Other aesthetic treatments'
-                    ].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="med_spa_recent_services"
-                          value={option}
-                          onChange={(e) => updateResponse('med_spa_recent_services', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How often do you visit med spas? *</label>
-                  <div className="space-y-2">
-                    {['Monthly or more', 'Every 2-3 months', 'Every 4-6 months', '1-2 times per year', 'This was my first visit'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="med_spa_frequency"
-                          value={option}
-                          onChange={(e) => updateResponse('med_spa_frequency', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Satisfaction Ratings</h3>
-                  <p className="text-sm text-gray-600 mb-6">Rate your satisfaction with your most recent med spa experience. Scale: 1 = Very Dissatisfied, 5 = Very Satisfied</p>
-                  
-                  <div className="space-y-2">
-                    {[
-                      'Appointment booking process',
-                      'Facility location and accessibility',
-                      'Parking availability',
-                      'Reception and check-in experience',
-                      'Wait time for appointment',
-                      'Reception staff friendliness',
-                      'Provider/practitioner professionalism',
-                      'Provider expertise and credentials',
-                      'Consultation quality and thoroughness',
-                      'Treatment explanation and consent process',
-                      'Pain management during treatment',
-                      'Comfort during treatment',
-                      'Treatment room cleanliness',
-                      'Treatment room ambiance',
-                      'Post-treatment care instructions',
-                      'Pricing transparency',
-                      'Value for money',
-                      'Results achieved',
-                      'Follow-up and aftercare',
-                      'Overall experience'
-                    ].map(item => (
-                      <ScaleRating key={item} questionId={`med_spa_${item.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`} label={item} />
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How likely are you to return to this med spa? *</label>
-                  <div className="space-y-2">
-                    {['Extremely likely', 'Very likely', 'Somewhat likely', 'Not very likely', 'Not at all likely'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="med_spa_return_likelihood"
-                          value={option}
-                          onChange={(e) => updateResponse('med_spa_return_likelihood', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-3">How likely are you to recommend this med spa to others? *</label>
-                  <div className="space-y-2">
-                    {['Extremely likely', 'Very likely', 'Somewhat likely', 'Not very likely', 'Not at all likely'].map(option => (
-                      <label key={option} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="radio"
-                          name="med_spa_recommend_likelihood"
-                          value={option}
-                          onChange={(e) => updateResponse('med_spa_recommend_likelihood', e.target.value)}
-                          className="mr-3 w-4 h-4"
-                          required
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-
-          // Completion screen
-          const CompletionScreen = () => (
-            <div className="text-center bg-white p-8 rounded-lg shadow-sm">
-              <h2 className="text-3xl font-bold mb-4 text-green-600">Thank You!</h2>
-              <p className="mb-6 text-lg">Your response has been recorded.</p>
-              <div className="bg-blue-50 border-2 border-blue-200 text-blue-800 px-6 py-4 rounded-lg mb-6">
-                <p className="font-bold text-lg mb-2">Your completion code is:</p>
-                <p className="text-2xl font-mono font-bold">{completionCode}</p>
-              </div>
-              <p className="text-gray-600">Please enter this code in MTurk to receive payment.</p>
-            </div>
-          );
-
-          // Render current section
-          const renderCurrentSection = () => {
-            if (isComplete) return <CompletionScreen />;
+        // Render current section
+        function renderCurrentSection() {
+            let content = '';
             
             switch (currentSection) {
-              case 1: return <Section1 />;
-              case 2: return <Section2 />;
-              case 3: return <Section3 />;
-              case 4: return <Section4 />;
-              case 5: return <Section5 />;
-              case 6: return <Section6 />;
-              case 7: return <Section7 />;
-              case 9: return <Section9 />;
-              default: 
-                return (
-                  <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h2 className="text-xl font-bold mb-4">Section {currentSection}</h2>
-                    <p>This section is under construction. For now, click Continue to proceed.</p>
-                  </div>
-                );
+                case 1:
+                    content = renderSection1();
+                    break;
+                case 2:
+                    content = renderSection2();
+                    break;
+                case 5:
+                    content = renderSection5();
+                    break;
+                case 9:
+                    content = renderSection9();
+                    break;
+                default:
+                    content = `
+                        <h2 class="text-xl font-bold mb-4">Section ${currentSection}</h2>
+                        <p>This section is under construction. For now, click Continue to proceed.</p>
+                    `;
             }
-          };
+            
+            surveyContent.innerHTML = content;
+        }
 
-          return (
-            <div className="min-h-screen py-6 px-4">
-              <div className="max-w-4xl mx-auto">
-                <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
-                  <h1 className="text-3xl font-bold mb-2">Lifestyle & Health Research Survey - MTurk</h1>
-                  <p className="text-gray-600">A research survey about lifestyle habits and health-related topics. Takes approximately 3-5 minutes to complete. Payment varies based on sections you qualify for.</p>
-                </div>
+        // Initialize survey
+        function initSurvey() {
+            renderCurrentSection();
+            updateProgress();
+            
+            continueBtn.addEventListener('click', nextSection);
+        }
 
-                {!isComplete && (
-                  <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
-                    <div className="text-sm text-gray-500 mb-2">Section {currentSection} of 11</div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
-                      <div 
-                        className="bg-blue-600 h-3 rounded-full transition-all duration-500" 
-                        style={{width: `${(currentSection / 11) * 100}%`}}
-                      ></div>
-                    </div>
-                  </div>
-                )}
-
-                {renderCurrentSection()}
-                
-                {!isComplete && (
-                  <div className="mt-8 text-center">
-                    <button 
-                      onClick={nextSection}
-                      className="bg-blue-600 text-white px-8 py-3 text-lg rounded-lg hover:bg-blue-700 transition-colors shadow-lg font-medium"
-                    >
-                      Continue
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        };
-
-        ReactDOM.render(React.createElement(MTurkSurvey), document.getElementById('root'));
+        // Start survey when page loads
+        document.addEventListener('DOMContentLoaded', initSurvey);
     </script>
 </body>
 </html>
