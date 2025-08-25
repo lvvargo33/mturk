@@ -10,6 +10,14 @@
         .scale-rating { transition: all 0.3s ease; }
         .scale-option:hover { transform: scale(1.05); }
         .continue-btn:hover { transform: translateY(-1px); }
+        .error-message { 
+            background-color: #fef2f2; 
+            border: 1px solid #fecaca; 
+            color: #dc2626; 
+            padding: 12px; 
+            border-radius: 8px; 
+            margin-bottom: 16px; 
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -28,6 +36,9 @@
                     <div id="progress-bar" class="bg-blue-600 h-3 rounded-full transition-all duration-500" style="width: 9%"></div>
                 </div>
             </div>
+
+            <!-- Error Message Container -->
+            <div id="error-container" class="hidden"></div>
 
             <!-- Survey Sections -->
             <div id="survey-content" class="bg-white p-6 rounded-lg shadow-sm">
@@ -61,6 +72,19 @@
         const continueContainer = document.getElementById('continue-container');
         const currentSectionSpan = document.getElementById('current-section');
         const progressBar = document.getElementById('progress-bar');
+        const errorContainer = document.getElementById('error-container');
+
+        // Show error message
+        function showError(message) {
+            errorContainer.innerHTML = `<div class="error-message">${message}</div>`;
+            errorContainer.classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Hide error message
+        function hideError() {
+            errorContainer.classList.add('hidden');
+        }
 
         // Update progress bar
         function updateProgress() {
@@ -92,7 +116,7 @@
                 
                 return `
                     <label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
-                        <input type="radio" name="${name}" value="${value}" ${required ? 'required' : ''} 
+                        <input type="radio" name="${name}" value="${value}" ${required ? 'data-required="true"' : ''} 
                                class="mr-3 w-4 h-4" onchange="updateResponse('${name}', this.value)">
                         <span>${label}</span>
                     </label>
@@ -101,16 +125,16 @@
         }
 
         // Create scale rating
-        function createScaleRating(questionId, label) {
+        function createScaleRating(questionId, label, required = true) {
             return `
                 <div class="mb-6 p-4 bg-white rounded-lg shadow-sm border">
-                    <label class="block text-sm font-medium mb-3 text-gray-800">${label}</label>
+                    <label class="block text-sm font-medium mb-3 text-gray-800">${label} ${required ? '*' : ''}</label>
                     <div class="flex items-center justify-between">
                         <span class="text-xs text-gray-500 hidden sm:block">Very Dissatisfied</span>
                         <div class="flex space-x-3 sm:space-x-4">
                             ${[1,2,3,4,5].map(value => `
                                 <label class="scale-option flex flex-col items-center cursor-pointer">
-                                    <input type="radio" name="${questionId}" value="${value}" required 
+                                    <input type="radio" name="${questionId}" value="${value}" ${required ? 'data-required="true"' : ''} 
                                            class="mb-1 w-4 h-4" onchange="updateResponse('${questionId}', this.value)">
                                     <span class="text-xs font-medium">${value}</span>
                                 </label>
@@ -124,6 +148,61 @@
                     </div>
                 </div>
             `;
+        }
+
+        // Handle checkbox change
+        function handleCheckboxChange(name, checkbox) {
+            if (!responses[name]) responses[name] = [];
+            
+            if (checkbox.checked) {
+                responses[name].push(checkbox.value);
+            } else {
+                responses[name] = responses[name].filter(item => item !== checkbox.value);
+            }
+        }
+
+        // Validate required fields
+        function validateCurrentSection() {
+            hideError();
+            
+            // Get all required radio button groups
+            const requiredRadioNames = new Set();
+            document.querySelectorAll('input[type="radio"][data-required="true"]').forEach(radio => {
+                requiredRadioNames.add(radio.name);
+            });
+            
+            // Check each required radio group
+            for (let groupName of requiredRadioNames) {
+                const groupRadios = document.querySelectorAll(`input[name="${groupName}"]`);
+                const isChecked = Array.from(groupRadios).some(radio => radio.checked);
+                if (!isChecked) {
+                    const label = groupRadios[0].closest('div').querySelector('label').textContent.replace(' *', '');
+                    showError(`Please answer the required question: "${label}"`);
+                    return false;
+                }
+            }
+            
+            // Check required text inputs
+            const requiredInputs = document.querySelectorAll('input[type="text"][data-required="true"]');
+            for (let input of requiredInputs) {
+                if (!input.value.trim()) {
+                    const labelText = input.previousElementSibling.textContent.replace(' *', '');
+                    showError(`Please fill in the required field: "${labelText}"`);
+                    input.focus();
+                    return false;
+                }
+            }
+            
+            // Check med spa treatments checkbox requirement
+            if (currentSection === 9) {
+                const checkboxes = document.querySelectorAll('input[name="med_spa_treatments"]:checked');
+                if (checkboxes.length === 0) {
+                    showError('Please select at least one treatment you received in the past month.');
+                    return false;
+                }
+            }
+            
+            return true;
         }
 
         // Section 1: Lifestyle Questions
@@ -231,38 +310,14 @@
                     <label class="block text-sm font-medium mb-3">Which method do you use MOST OFTEN to purchase cannabis? *</label>
                     <div class="space-y-2">
                         <label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
-                            <input type="radio" name="cannabis_method" value="dispensary" required 
+                            <input type="radio" name="cannabis_method" value="dispensary" data-required="true" 
                                    class="mr-3 w-4 h-4" onchange="updateResponse('cannabis_method', this.value)">
                             Dispensary (physical store)
                         </label>
                         <label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
-                            <input type="radio" name="cannabis_method" value="delivery" required 
+                            <input type="radio" name="cannabis_method" value="delivery" data-required="true" 
                                    class="mr-3 w-4 h-4" onchange="updateResponse('cannabis_method', this.value)">
                             Delivery service
-                        </label>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Section 5: Ketamine Setting Selection
-        function renderSection5() {
-            return `
-                <h2 class="text-2xl font-bold mb-4">Ketamine Research Section</h2>
-                <p class="mb-6 text-gray-600">Based on your previous answers, you qualify for this research section. Please answer the following questions about ketamine use.</p>
-                
-                <div>
-                    <label class="block text-sm font-medium mb-3">In what setting did you MOST RECENTLY use ketamine? *</label>
-                    <div class="space-y-2">
-                        <label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
-                            <input type="radio" name="ketamine_setting" value="clinical" required 
-                                   class="mr-3 w-4 h-4" onchange="updateResponse('ketamine_setting', this.value)">
-                            Clinical/medical setting (doctor's office, clinic)
-                        </label>
-                        <label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
-                            <input type="radio" name="ketamine_setting" value="other" required 
-                                   class="mr-3 w-4 h-4" onchange="updateResponse('ketamine_setting', this.value)">
-                            Other setting
                         </label>
                     </div>
                 </div>
@@ -277,14 +332,14 @@
                 <div class="space-y-6">
                     <div>
                         <label class="block text-sm font-medium mb-2">What is the name of the dispensary you most recently made a purchase from? *</label>
-                        <input type="text" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                               onchange="updateResponse('dispensary_name', this.value)" oninput="updateResponse('dispensary_name', this.value)">
+                        <input type="text" data-required="true" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               oninput="updateResponse('dispensary_name', this.value)">
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium mb-2">Please input the city and state for the dispensary you most recently made a purchase from. (example Denver, CO) *</label>
-                        <input type="text" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                               onchange="updateResponse('dispensary_location', this.value)" oninput="updateResponse('dispensary_location', this.value)">
+                        <input type="text" data-required="true" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               oninput="updateResponse('dispensary_location', this.value)">
                     </div>
 
                     <div>
@@ -356,14 +411,14 @@
                 <div class="space-y-6">
                     <div>
                         <label class="block text-sm font-medium mb-2">What is the name of the cannabis delivery service you most recently used? *</label>
-                        <input type="text" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                               onchange="updateResponse('delivery_name', this.value)" oninput="updateResponse('delivery_name', this.value)">
+                        <input type="text" data-required="true" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               oninput="updateResponse('delivery_name', this.value)">
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium mb-2">Please input the city and state for the cannabis delivery service you used most recently. (example - Denver, CO) *</label>
-                        <input type="text" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                               onchange="updateResponse('delivery_location', this.value)" oninput="updateResponse('delivery_location', this.value)">
+                        <input type="text" data-required="true" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               oninput="updateResponse('delivery_location', this.value)">
                     </div>
 
                     <div>
@@ -427,6 +482,30 @@
             `;
         }
 
+        // Section 5: Ketamine Setting Selection
+        function renderSection5() {
+            return `
+                <h2 class="text-2xl font-bold mb-4">Ketamine Research Section</h2>
+                <p class="mb-6 text-gray-600">Based on your previous answers, you qualify for this research section. Please answer the following questions about ketamine use.</p>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-3">In what setting did you MOST RECENTLY use ketamine? *</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+                            <input type="radio" name="ketamine_setting" value="clinical" data-required="true" 
+                                   class="mr-3 w-4 h-4" onchange="updateResponse('ketamine_setting', this.value)">
+                            Clinical/medical setting (doctor's office, clinic)
+                        </label>
+                        <label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+                            <input type="radio" name="ketamine_setting" value="other" data-required="true" 
+                                   class="mr-3 w-4 h-4" onchange="updateResponse('ketamine_setting', this.value)">
+                            Other setting
+                        </label>
+                    </div>
+                </div>
+            `;
+        }
+
         // Section 6: Ketamine Clinic Section
         function renderSection6() {
             return `
@@ -435,14 +514,14 @@
                 <div class="space-y-6">
                     <div>
                         <label class="block text-sm font-medium mb-2">What is the name of the ketamine clinic you most recently visited? *</label>
-                        <input type="text" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                               onchange="updateResponse('ketamine_clinic_name', this.value)" oninput="updateResponse('ketamine_clinic_name', this.value)">
+                        <input type="text" data-required="true" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               oninput="updateResponse('ketamine_clinic_name', this.value)">
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium mb-2">Please input the city and state for the clinic you most recently visited. (example - Denver, CO) *</label>
-                        <input type="text" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                               onchange="updateResponse('ketamine_clinic_location', this.value)" oninput="updateResponse('ketamine_clinic_location', this.value)">
+                        <input type="text" data-required="true" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               oninput="updateResponse('ketamine_clinic_location', this.value)">
                     </div>
 
                     <div>
@@ -514,9 +593,9 @@
                 <div class="space-y-6">
                     <div>
                         <label class="block text-sm font-medium mb-2">What is the name of the online ketamine provider you most recently used? *</label>
-                        <input type="text" placeholder="Examples: Mindbloom, Nue Life, Wondermed, Better U Care, Joyous, etc." required 
-                               class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                               onchange="updateResponse('ketamine_online_name', this.value)" oninput="updateResponse('ketamine_online_name', this.value)">
+                        <input type="text" placeholder="Examples: Mindbloom, Nue Life, Wondermed, Better U Care, Joyous, etc." 
+                               data-required="true" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               oninput="updateResponse('ketamine_online_name', this.value)">
                     </div>
 
                     <div>
@@ -602,14 +681,14 @@
 
                     <div>
                         <label class="block text-sm font-medium mb-2">What is the name of the med spa you visited most recently? *</label>
-                        <input type="text" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                               onchange="updateResponse('med_spa_name', this.value)" oninput="updateResponse('med_spa_name', this.value)">
+                        <input type="text" data-required="true" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               oninput="updateResponse('med_spa_name', this.value)">
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium mb-2">Please input the city and state for the med spa you visited most recently. (example - Denver, CO) *</label>
-                        <input type="text" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                               onchange="updateResponse('med_spa_location', this.value)" oninput="updateResponse('med_spa_location', this.value)">
+                        <input type="text" data-required="true" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               oninput="updateResponse('med_spa_location', this.value)">
                     </div>
 
                     <div>
@@ -698,60 +777,8 @@
             `;
         }
 
-        // Handle checkbox change
-        function handleCheckboxChange(name, checkbox) {
-            if (!responses[name]) responses[name] = [];
-            
-            if (checkbox.checked) {
-                responses[name].push(checkbox.value);
-            } else {
-                responses[name] = responses[name].filter(item => item !== checkbox.value);
-            }
-        }
-
-        // Validate required fields before advancing
-        function validateCurrentSection() {
-            const currentForm = surveyContent.querySelector('div');
-            const requiredRadios = currentForm.querySelectorAll('input[type="radio"][required]');
-            const requiredInputs = currentForm.querySelectorAll('input[type="text"][required]');
-            
-            // Check required radio groups
-            const radioGroups = new Set();
-            requiredRadios.forEach(radio => radioGroups.add(radio.name));
-            
-            for (let groupName of radioGroups) {
-                const groupRadios = currentForm.querySelectorAll(`input[name="${groupName}"]`);
-                const isChecked = Array.from(groupRadios).some(radio => radio.checked);
-                if (!isChecked) {
-                    alert(`Please answer the required question: ${groupName.replace(/_/g, ' ')}`);
-                    return false;
-                }
-            }
-            
-            // Check required text inputs
-            for (let input of requiredInputs) {
-                if (!input.value.trim()) {
-                    alert(`Please fill in the required field: ${input.previousElementSibling.textContent.replace(' *', '')}`);
-                    input.focus();
-                    return false;
-                }
-            }
-            
-            // Check med spa treatments checkbox requirement
-            if (currentSection === 9) {
-                const checkboxes = currentForm.querySelectorAll('input[name="med_spa_treatments"]:checked');
-                if (checkboxes.length === 0) {
-                    alert('Please select at least one treatment you received.');
-                    return false;
-                }
-            }
-            
-            return true;
-        }
-
         // Navigate to next section
         function nextSection() {
-            // Validate current section before advancing
             if (!validateCurrentSection()) {
                 return;
             }
