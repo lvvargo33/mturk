@@ -839,32 +839,54 @@
         }
 
         // Submit survey data to Google Sheets
-        async function submitSurveyData(completionCode) {
-            const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbz34dfPM_707kJm03JD2A3X5zYDGHR6O2vW-FzFsi7LZaawR2rcG1raN_algNXqqQ1VLw/exec';
-            
-            // Prepare data for submission
-            const surveyData = {
-                completion_code: completionCode,
-                timestamp: new Date().toISOString(),
-                ...responses, // Include all survey responses
-                all_responses: responses // Full responses as JSON backup
-            };
-            
-            try {
-                const response = await fetch(WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(surveyData)
-                });
-                
-                console.log('Survey data submitted successfully');
-            } catch (error) {
-                console.error('Error submitting survey data:', error);
-                // Survey still shows completion code even if submission fails
-            }
-        }
+async function submitSurveyData(completionCode) {
+    const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzgZGekSxRvnrXs0DSpGvkVXNsa0JvvKJ5dEUQHV-2AAJJhu51Ks7N6F3ZWcOfkQQScrg/exec'
+    
+    // Prepare data for submission
+    const surveyData = {
+        completion_code: completionCode,
+        timestamp: new Date().toISOString(),
+        ...responses,
+        all_responses: responses
+    };
+    
+    try {
+        // Create a hidden iframe to submit data
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.name = 'submit_frame';
+        document.body.appendChild(iframe);
+        
+        // Create a form that submits to the iframe
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = WEBHOOK_URL;
+        form.target = 'submit_frame';
+        form.style.display = 'none';
+        
+        // Add data as form fields
+        Object.keys(surveyData).forEach(key => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = typeof surveyData[key] === 'object' ? JSON.stringify(surveyData[key]) : surveyData[key];
+            form.appendChild(input);
+        });
+        
+        document.body.appendChild(form);
+        form.submit();
+        
+        // Clean up after a short delay
+        setTimeout(() => {
+            document.body.removeChild(form);
+            document.body.removeChild(iframe);
+        }, 1000);
+        
+        console.log('Survey data submitted successfully');
+    } catch (error) {
+        console.error('Error submitting survey data:', error);
+    }
+}
 
         // Show completion screen
         function showCompletion(code) {
