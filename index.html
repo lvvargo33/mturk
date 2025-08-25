@@ -215,14 +215,6 @@
                 }
             }
             
-            // Check med spa treatments checkbox requirement
-            if (currentSection === 9) {
-                const checkboxes = document.querySelectorAll('input[name="med_spa_treatments"]:checked');
-                if (checkboxes.length === 0) {
-                    missingFields.push('med_spa_treatments');
-                }
-            }
-            
             if (missingFields.length > 0) {
                 showError('Please answer all required questions to advance.', missingFields);
                 return false;
@@ -693,19 +685,6 @@
                 
                 <div class="space-y-6">
                     <div>
-                        <label class="block text-sm font-medium mb-3">Which treatments did you receive in the past month? (Select all that apply) *</label>
-                        <div class="space-y-2">
-                            ${['Botox', 'Dermal fillers', 'Laser hair removal', 'CoolSculpting', 'Chemical peels', 'Microneedling', 'Other'].map(option => `
-                                <label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
-                                    <input type="checkbox" name="med_spa_treatments" value="${option}" 
-                                           class="mr-3 w-4 h-4" onchange="handleCheckboxChange('med_spa_treatments', this)">
-                                    ${option}
-                                </label>
-                            `).join('')}
-                        </div>
-                    </div>
-
-                    <div>
                         <label class="block text-sm font-medium mb-2">What is the name of the med spa you visited most recently? *</label>
                         <input type="text" data-required="true" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                oninput="updateResponse('med_spa_name', this.value)">
@@ -859,9 +838,41 @@
             updateProgress();
         }
 
+        // Submit survey data to Google Sheets
+        async function submitSurveyData(completionCode) {
+            const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwAGsp2_IvKEGNN1UCiU85LxLWcKRx6RPvux16UzTqTXBXwrjQWui2MyIkwT27Wr9IvvA/exec';
+            
+            // Prepare data for submission
+            const surveyData = {
+                completion_code: completionCode,
+                timestamp: new Date().toISOString(),
+                ...responses, // Include all survey responses
+                all_responses: responses // Full responses as JSON backup
+            };
+            
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(surveyData)
+                });
+                
+                console.log('Survey data submitted successfully');
+            } catch (error) {
+                console.error('Error submitting survey data:', error);
+                // Survey still shows completion code even if submission fails
+            }
+        }
+
         // Show completion screen
         function showCompletion(code) {
             isComplete = true;
+            
+            // Submit data to Google Sheets
+            submitSurveyData(code);
+            
             surveyContent.innerHTML = renderCompletion(code);
             progressContainer.classList.add('hidden');
             continueContainer.classList.add('hidden');
@@ -904,6 +915,9 @@
             }
             
             surveyContent.innerHTML = content;
+            
+            // Always scroll to top when new section loads
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         // Initialize survey
