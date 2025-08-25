@@ -18,6 +18,12 @@
             border-radius: 8px; 
             margin-bottom: 16px; 
         }
+        .highlight-required {
+            border: 2px solid #dc2626 !important;
+            background-color: #fef2f2 !important;
+            border-radius: 8px;
+            padding: 12px;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -31,7 +37,7 @@
 
             <!-- Progress Bar -->
             <div id="progress-container" class="bg-white p-4 rounded-lg shadow-sm mb-6">
-                <div class="text-sm text-gray-500 mb-2">Section <span id="current-section">1</span> of 11</div>
+                <div class="text-sm text-gray-500 mb-2"><span id="current-section">9% complete</span></div>
                 <div class="w-full bg-gray-200 rounded-full h-3">
                     <div id="progress-bar" class="bg-blue-600 h-3 rounded-full transition-all duration-500" style="width: 9%"></div>
                 </div>
@@ -74,10 +80,25 @@
         const progressBar = document.getElementById('progress-bar');
         const errorContainer = document.getElementById('error-container');
 
-        // Show error message
-        function showError(message) {
+        // Show error message and highlight missing fields
+        function showError(message, highlightFields = []) {
             errorContainer.innerHTML = `<div class="error-message">${message}</div>`;
             errorContainer.classList.remove('hidden');
+            
+            // Remove previous highlights
+            document.querySelectorAll('.highlight-required').forEach(el => {
+                el.classList.remove('highlight-required');
+            });
+            
+            // Highlight missing fields
+            highlightFields.forEach(fieldName => {
+                const field = document.querySelector(`input[name="${fieldName}"]`);
+                if (field) {
+                    const container = field.closest('div');
+                    container.classList.add('highlight-required');
+                }
+            });
+            
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -88,8 +109,9 @@
 
         // Update progress bar
         function updateProgress() {
-            currentSectionSpan.textContent = currentSection;
-            progressBar.style.width = `${(currentSection / 11) * 100}%`;
+            const percentage = Math.round((currentSection / 11) * 100);
+            currentSectionSpan.textContent = `${percentage}% complete`;
+            progressBar.style.width = `${percentage}%`;
         }
 
         // Update response
@@ -131,12 +153,12 @@
                     <label class="block text-sm font-medium mb-3 text-gray-800">${label} ${required ? '*' : ''}</label>
                     <div class="flex items-center justify-between">
                         <span class="text-xs text-gray-500 hidden sm:block">Very Dissatisfied</span>
-                        <div class="flex space-x-3 sm:space-x-4">
+                        <div class="flex space-x-6 sm:space-x-8">
                             ${[1,2,3,4,5].map(value => `
-                                <label class="scale-option flex flex-col items-center cursor-pointer">
+                                <label class="scale-option flex flex-col items-center cursor-pointer p-2">
                                     <input type="radio" name="${questionId}" value="${value}" ${required ? 'data-required="true"' : ''} 
                                            class="mb-1 w-4 h-4" onchange="updateResponse('${questionId}', this.value)">
-                                    <span class="text-xs font-medium">${value}</span>
+                                    <span class="text-sm font-medium">${value}</span>
                                 </label>
                             `).join('')}
                         </div>
@@ -165,6 +187,8 @@
         function validateCurrentSection() {
             hideError();
             
+            const missingFields = [];
+            
             // Get all required radio button groups
             const requiredRadioNames = new Set();
             document.querySelectorAll('input[type="radio"][data-required="true"]').forEach(radio => {
@@ -176,9 +200,7 @@
                 const groupRadios = document.querySelectorAll(`input[name="${groupName}"]`);
                 const isChecked = Array.from(groupRadios).some(radio => radio.checked);
                 if (!isChecked) {
-                    const label = groupRadios[0].closest('div').querySelector('label').textContent.replace(' *', '');
-                    showError(`Please answer the required question: "${label}"`);
-                    return false;
+                    missingFields.push(groupName);
                 }
             }
             
@@ -186,10 +208,10 @@
             const requiredInputs = document.querySelectorAll('input[type="text"][data-required="true"]');
             for (let input of requiredInputs) {
                 if (!input.value.trim()) {
-                    const labelText = input.previousElementSibling.textContent.replace(' *', '');
-                    showError(`Please fill in the required field: "${labelText}"`);
-                    input.focus();
-                    return false;
+                    // Create a unique field name for text inputs
+                    const fieldName = input.previousElementSibling.textContent.replace(' *', '').toLowerCase().replace(/[^a-z0-9]/g, '_');
+                    missingFields.push(fieldName);
+                    input.closest('div').setAttribute('data-field-name', fieldName);
                 }
             }
             
@@ -197,9 +219,13 @@
             if (currentSection === 9) {
                 const checkboxes = document.querySelectorAll('input[name="med_spa_treatments"]:checked');
                 if (checkboxes.length === 0) {
-                    showError('Please select at least one treatment you received in the past month.');
-                    return false;
+                    missingFields.push('med_spa_treatments');
                 }
+            }
+            
+            if (missingFields.length > 0) {
+                showError('Please answer all required questions to advance.', missingFields);
+                return false;
             }
             
             return true;
