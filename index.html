@@ -544,3 +544,54 @@
     </script>
 </body>
 </html>
+
+// Debug function for testing webhook - make sure this is in global scope
+window.testWebhook = function() {
+    console.log('=== TESTING WEBHOOK ===');
+    
+    // Set test responses
+    responses = {
+        cannabis_usage: 'weekly',
+        ketamine_usage: 'no',
+        med_spa_usage: 'yes',
+        attention_check: 'weekly',
+        alcohol_usage: 'monthly',
+        nicotine_usage: 'never'
+    };
+    
+    console.log('Test responses set:', responses);
+    
+    // Test the submission
+    submitSurveyData('DEBUG-TEST-' + Date.now())
+        .then(() => {
+            console.log('Test submission completed');
+        })
+        .catch(error => {
+            console.error('Test submission failed:', error);
+        });
+};
+
+// Alternative simple test function
+window.quickTest = function() {
+    const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzEgLVLs2rK9IJIkC58BHs_kUgKF84vIbjGY6YZ-hfLni2H9amsJ9po96y_z-wJZbSPpw/exec';
+    
+    console.log('Testing webhook connection...');
+    
+    fetch(WEBHOOK_URL)
+        .then(response => {
+            console.log('Response status:', response.status);
+            console.log('Response ok:', response.ok);
+            return response.text();
+        })
+        .then(text => {
+            console.log('Response body:', text);
+            if (text.includes('Survey')) {
+                console.log('✅ Webhook is responding');
+            } else {
+                console.log('❌ Unexpected response');
+            }
+        })
+        .catch(error => {
+            console.error('❌ Webhook test failed:', error);
+        });
+};
